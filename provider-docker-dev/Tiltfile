@@ -1,0 +1,31 @@
+settings = {
+    "docker": {
+        "default_image": "gcr.io/kubernetes1-226021/manager:dev",
+    },
+}
+
+settings.update(read_json(
+    "../config.json",
+    default = {},
+))
+
+docker_image = settings.get("docker")["default_image"]
+
+docker_manifests = kustomize("../cluster-api/test/infrastructure/docker/config/default")
+
+k8s_yaml(docker_manifests)
+
+docker_build(
+    docker_image,
+    "../cluster-api/test/infrastructure/docker",
+    dockerfile = "../cluster-api/test/infrastructure/docker/Dockerfile.dev",
+    live_update = [
+        sync("main.go", "/workspace"),
+        sync("api", "/workspace/api"),
+        sync("third_party", "/workspace/controllers"),
+        sync("controllers", "/workspace/third_party"),
+        run("go build -o /manager ."),
+        run("./restart.sh"),
+    ],
+    target = "",
+)

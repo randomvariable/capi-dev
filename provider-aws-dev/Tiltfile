@@ -1,0 +1,38 @@
+settings = {
+    "aws": {
+        "default_image": "gcr.io/k8s-staging-cluster-api-aws/cluster-api-aws-controller",
+    },
+}
+
+settings.update(read_json(
+    "../config.json",
+    default = {},
+))
+
+aws_image = settings.get("aws")["default_image"]
+
+aws_manifests = kustomize(".manifests/aws/default")
+
+# Ensure AWS credentials exist
+local("make .manifests/aws/manager/aws-credentials.done")
+
+local("cd .. && make cluster-api-provider-aws/third_party/forked/rerun-process-wrapper")
+
+k8s_yaml(aws_manifests)
+
+docker_build(
+    aws_image,
+    "../cluster-api-provider-aws",
+    dockerfile = "Dockerfile",
+    ignore = ["test/*"],
+    live_update = [
+        sync("cmd", "/workspace/cmd"),
+        sync("api", "/workspace/api"),
+        sync("pkg", "/workspace/pkg"),
+        sync("controllers", "/workspace/controllers"),
+        sync("main.go", "/workspace/main.go"),
+        run("go build -o /manager ."),
+        run("./restart.sh"),
+    ],
+    target = "builder",
+)

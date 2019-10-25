@@ -1,0 +1,145 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  name: aws-test
+  namespace: aws-test
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: AWSCluster
+    name: aws-test
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: AWSCluster
+metadata:
+  name: aws-test
+  namespace: aws-test
+spec:
+  # Change this value to the region you want to deploy the cluster in.
+  region: eu-west-1
+  # Change this value to a valid SSH Key Pair present in your AWS Account.
+  sshKeyName: default
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Machine
+metadata:
+  name: aws-test-controlplane-0
+  namespace: aws-test
+  labels:
+    cluster.x-k8s.io/control-plane: "true"
+    cluster.x-k8s.io/cluster-name: "aws-test"
+spec:
+  version: v1.15.3
+  clusterName: aws-test
+  bootstrap:
+    configRef:
+      apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+      kind: KubeadmConfig
+      name: aws-test-controlplane-0
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: AWSMachine
+    name: aws-test-controlplane-0
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: AWSMachine
+metadata:
+  name: aws-test-controlplane-0
+  namespace: aws-test
+spec:
+  instanceType: t3.large
+  clusterName: aws-test
+  # This IAM profile is part of the pre-requisites.
+  iamInstanceProfile: "controllers.cluster-api-provider-aws.sigs.k8s.io"
+  # Change this value to a valid SSH Key Pair present in your AWS Account.
+  sshKeyName: default
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+kind: KubeadmConfig
+metadata:
+  name: aws-test-controlplane-0
+  namespace: aws-test
+spec:
+  # For more information about these values,
+  # refer to the Kubeadm Bootstrap Provider documentation.
+  initConfiguration:
+    nodeRegistration:
+      name: '{{ ds.meta_data.hostname }}'
+      kubeletExtraArgs:
+        cloud-provider: aws
+  clusterConfiguration:
+    apiServer:
+      extraArgs:
+        cloud-provider: aws
+    controllerManager:
+      extraArgs:
+        cloud-provider: aws
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineDeployment
+metadata:
+  name: aws-test-worker
+  namespace: aws-test
+  labels:
+    cluster.x-k8s.io/cluster-name: aws-test
+    # Labels beyond this point are for example purposes,
+    # feel free to add more or change with something more meaningful.
+    # Sync these values with spec.selector.matchLabels and spec.template.metadata.labels.
+    nodepool: nodepool-0
+spec:
+  replicas: 3
+  clusterName: aws-test
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: aws-test
+      nodepool: nodepool-0
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: aws-test
+        nodepool: nodepool-0
+    spec:
+      version: v1.15.3
+      clusterName: aws-test
+      bootstrap:
+        configRef:
+          name: aws-test-worker
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+          kind: KubeadmConfigTemplate
+      infrastructureRef:
+        name: aws-test-worker
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+        kind: AWSMachineTemplate
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: AWSMachineTemplate
+metadata:
+  name: aws-test-worker
+  namespace: aws-test
+spec:
+  template:
+    spec:
+      instanceType: t3.large
+      # This IAM profile is part of the pre-requisites.
+      iamInstanceProfile: "nodes.cluster-api-provider-aws.sigs.k8s.io"
+      # Change this value to a valid SSH Key Pair present in your AWS Account.
+      sshKeyName: default
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha2
+kind: KubeadmConfigTemplate
+metadata:
+  name: aws-test-worker
+  namespace: aws-test
+spec:
+  template:
+    spec:
+      # For more information about these values,
+      # refer to the Kubeadm Bootstrap Provider documentation.
+      joinConfiguration:
+        nodeRegistration:
+          name: '{{ ds.meta_data.hostname }}'
+          kubeletExtraArgs:
+            cloud-provider: aws

@@ -1,0 +1,10 @@
+{
+  "default_registry": "fabrikom-repository.com/capi",
+  "default_images": {
+    "custom_provider_image": "gcr.io/k8s-staging-cluster-api/cluster-api-controller"
+  },
+  "k8s_contexts": [
+    "kubernetes-admin@home"
+  ],
+  "provider": "aws"
+}

@@ -4,7 +4,7 @@ This repo houses some tools to make running Cluster API v1alpha2 a little bit ea
 
 ## Repo Setup
 
-Run `./init.sh`. This will clone some basic providers for you to try.
+Run `make init`. This will clone some basic providers for you to try.
 
 ## Install Tilt
 
@@ -18,11 +18,11 @@ Use kind, set up a cluster on AWS, GCP, etc. Whatever works. This will be your m
 
 Assuming your local environment is set up for AWS access, run:
 
-run `./devenv/setup.sh`.
+run `./single-node-cluster-quickstart/setup.sh`.
 
 This will create a single node kubernetes control plane to be used as the management cluster.
 
-This will grab the kubeconfig and put it at `./devenv/dev-kubeconfig`.
+This will grab the kubeconfig and put it at `./single-node-cluster-quickstart/dev-kubeconfig`.
  
 ### kind (recommended for linux)
 
@@ -34,26 +34,21 @@ Set KUBECONFIG.
 
 ## Update config.json 
 
-Make sure you update the values in `config.json ` to point to your registry
+Make sure you update the values in `config.json ` to point to your registry,
+and set the provider you want to test.
 
 ```json
 {
-  "default_registry": "gcr.io/<your project>",
-  "default_core_image": "gcr.io/k8s-staging-cluster-api/cluster-api-controller:latest",
-  "default_bootstrap_image": "gcr.io/<your project>/cluster-api-bootstrap-provider:latest",
-  "default_infrastructure_image": "gcr.io/<your project>/manager:dev"
+  "default_registry": "fabrikom-repository.com/capi",
+  "default_images": {
+    "custom_provider_image": "gcr.io/k8s-staging-cluster-api/cluster-api-controller"
+  },
+  "k8s_contexts": [
+    "kubernetes-admin@home"
+  ],
+  "provider": "aws"
 }
 ```
-
-## Modify the Tiltfile
-
-Set the `infrastructure_provider` in the _Tiltfile_
-
-### Using the AWS provider
- 
- Please note the `Tiltfile` assumes `clusterawsadm` is in the _bin_ directory of the AWS provider repo cloned 
- in the `init.sh` phase.  Before running `tilt up`, make sure you have `clusterawsadm` in the relevant path. 
- If you don't, run `make clusterawsadm` from the AWS provider repo or update the `Tiltfile`. 
 
 ## Run Tilt
 

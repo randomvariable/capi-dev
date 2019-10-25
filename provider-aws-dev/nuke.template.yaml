@@ -1,0 +1,52 @@
+regions:
+- eu-west-1
+- us-east-1
+- ap-northeast-1
+- ap-northeast-2
+- ap-south-1
+- ap-southeast-1
+- ap-southeast-2
+- ca-central-1
+- eu-central-1
+- eu-west-2
+- eu-west-3
+- sa-east-1
+- us-east-2
+- us-west-1
+- us-west-2
+
+account-blacklist:
+- "999999999999" # production
+
+accounts:
+  "${CAPI_DEV_AWS_ACCOUNT_ID}": {} # actual account
+
+resource-types:
+  targets:
+    - EC2Address
+    - EC2Instance
+    - EC2InternetGatewayAttachment
+    - EC2InternetGateway
+    - EC2NATGateway
+    - EC2NetworkInterface
+    - EC2RouteTable
+    - EC2SecurityGroup
+    - EC2Snapshot
+    - EC2Subnet
+    - EC2Volume
+    - EC2VPC
+    - ELB
+    - EC2Image
+  excludes:
+    - IAM*
+    - IAMPolicy
+    - CloudTrailTrail
+    - ConfigServiceConfigurationRecorder
+    - ConfigServiceConfigRule
+    - ConfigServiceDeliveryChannel
+    - IAM*
+    - Config*
+    - CloudTrail*
+    - CloudFormation*
+    - S3*
+    - EC2KeyPair

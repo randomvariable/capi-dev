@@ -1,2 +1,6 @@
-cluster-api*
+
 .idea
+nuke.yaml
+config.json
+.env
+/cluster-api*

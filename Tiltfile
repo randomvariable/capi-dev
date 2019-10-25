@@ -1,96 +1,54 @@
-enable_feature("snapshots")
+# -*- mode: Bazel -*-
 
-allow_k8s_contexts('kubernetes-admin@kubernetes')
+settings = {
+    "core": {
+        "default_image": "gcr.io/k8s-staging-cluster-api/cluster-api-controller",
+    },
+    "provider": "docker",
+}
 
-DOCKER_PROVIDER='cluster-api-provider-docker'
-AWS_PROVIDER='cluster-api-provider-aws'
+# global settings
+settings.update(read_json(
+    "config.json",
+    default = {},
+))
 
-# Set to either Docker or AWS
-# infrastructure_provider = DOCKER_PROVIDER
-infrastructure_provider = AWS_PROVIDER
+allow_k8s_contexts(settings.get("k8s_contexts"))
 
-# proj is the base dir
-# args will be joined after the project if args exist
-def dir(proj, *args):
-	path = list(args)
-	path.insert(0,proj)
-	path.insert(0,'.')
-	return '/'.join(path)
+default_registry(settings.get("default_registry"))
 
-settings = read_json('config.json', default={})
-default_registry(settings.get('default_registry'))
+core_image = settings.get("core")["default_image"]
 
-core_provider = 'cluster-api'
-bootstrap_provider = 'cluster-api-bootstrap-provider-kubeadm'
+# Install cert-manager if not installed
+local("make cert-manager")
 
-core_image = settings.get('default_core_image')
-bootstrap_image = settings.get('default_bootstrap_image')
-infrastructure_image = settings.get('default_infrastructure_image')
+local("make cluster-api/third_party/forked/rerun-process-wrapper")
 
-providers = [
-	{
-		'name': core_provider,
-		'image': core_image,
-	},
-	{
-		'name': bootstrap_provider,
-		'image': bootstrap_image,
-	},
-	{
-		'name': infrastructure_provider,
-		'image': infrastructure_image,
-	},
-]
+# Gather manifests
+capi_manifests = kustomize("./cluster-api/config/default")
 
-for provider in providers:
-	if provider['name'] == AWS_PROVIDER:
-		b64credentials = local(AWS_PROVIDER + "/bin/clusterawsadm alpha bootstrap encode-aws-credentials | tr -d '\n'")
-		command = '''sed -i '' -e 's@credentials: .*@credentials: '"{}"'@' {}/config/manager/credentials.yaml'''.format(b64credentials, provider['name'])
-		local(command)
-	command = '''sed -i '' -e 's@image: .*@image: '"{}"'@' ./{}/config/default/manager_image_patch.yaml'''.format(provider['image'], provider['name'])
-	local(command)
-	kustomizedir = './' + provider['name'] + '/config/default'
-	# listdir(kustomizedir)
-	k8s_yaml(kustomize(kustomizedir))
+# Install manifests
+k8s_yaml(capi_manifests)
 
-docker_build(core_image, './cluster-api')
+# Build processes
+docker_build(
+    core_image,
+    "./cluster-api",
+    dockerfile = "core-dev/Dockerfile",
+    ignore = ["test/*"],
+    live_update = [
+        sync("cmd", "/workspace/cmd"),
+        sync("api", "/workspace/api"),
+        sync("errors", "/workspace/errors"),
+        sync("util", "/workspace/util"),
+        sync("bootstrap", "/workspace/bootstrap"),
+        sync("controllers", "/workspace/controllers"),
+        sync("third_party/kubernetes-drain", "/workspace/third_party/kubernetes-drain"),
+        sync("main.go", "/workspace/main.go"),
+        run("go build -o /manager ."),
+        run("./restart.sh"),
+    ],
+    target = "builder",
+)
 
-docker_build(bootstrap_image, dir(bootstrap_provider), dockerfile=bootstrap_provider + '/Dockerfile.dev',
-	live_update=[
-		sync(dir(bootstrap_provider, 'controllers'), '/workspace/controllers'),
-		sync(dir(bootstrap_provider, 'main.go'), '/workspace/main.go'),
-		sync(dir(bootstrap_provider, 'api'), '/workspace/api'),
-		sync(dir(bootstrap_provider, 'locking'), '/workspace/locking'),
-		run('go install -v ./main.go'),
-		run('mv /go/bin/main /manager'),
-		run('./restart.sh'),])
-
-## Uncomment one of the two depending on which infrastructure provider you are using
-
-# # aws provider
-def aws_docker_build():
- 	docker_build(infrastructure_image, dir(infrastructure_provider), dockerfile=infrastructure_provider + '/dev.dockerfile',
-		live_update=[
-			sync(dir(infrastructure_provider, "pkg"), '/workspace/pkg'),
-			sync(dir(infrastructure_provider, "main.go"), '/workspace/main.go'),
-			run('go install -v ./cmd/manager'),
-			run('mv /go/bin/manager /manager'),
-			run('./restart.sh'),])
-
-# docker provider
-def docker_docker_build():
-	docker_build(infrastructure_image, dir(infrastructure_provider), dockerfile=infrastructure_provider + '/Dockerfile.dev',
-	live_update=[
-		sync(dir(infrastructure_provider, "api"), '/workspace/api'),
-		sync(dir(infrastructure_provider, "docker"), '/workspace/docker'),
-		sync(dir(infrastructure_provider, "cloudinit"), '/workspace/cloudinit'),
-		sync(dir(infrastructure_provider, "controllers"), '/workspace/controllers'),
-		sync(dir(infrastructure_provider, "cmd", "manager", "main.go"), '/workspace/cmd/manager/main.go'),
-		run('go install -v ./cmd/manager'),
-		run('mv /go/bin/manager /manager'),
-		run('./restart.sh'),])
-
-if infrastructure_provider == DOCKER_PROVIDER:
-	docker_docker_build()
-elif infrastructure_provider == AWS_PROVIDER:
-	aws_docker_build()
+include("provider-" + settings.get("provider") + "-dev/Tiltfile")

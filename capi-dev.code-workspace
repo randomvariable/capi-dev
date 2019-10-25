@@ -1,0 +1,29 @@
+{
+  "folders": [
+    {
+      "path": "cluster-api-provider-aws"
+    },
+    {
+      "path": "cluster-api-provider-azure"
+    },
+    {
+      "path": "cluster-api"
+    },
+    {
+      "path": "cluster-api-bootstrap-provider-kubeadm"
+    },
+    {
+      "path": "cluster-api-provider-docker"
+    },
+    {
+      "path": "cluster-api-provider-gcp"
+    },
+    {
+      "path": "cluster-api-provider-vsphere"
+    },
+    {
+      "path": "."
+    }
+  ],
+  "settings": {}
+}
