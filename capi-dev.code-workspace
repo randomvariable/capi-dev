@@ -25,5 +25,7 @@
       "path": "."
     }
   ],
-  "settings": {}
+  "settings": {
+    "cSpell.enabled": false
+  }
 }

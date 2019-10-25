@@ -35,6 +35,6 @@ test.kubeconfig:
 	echo export KUBECONFIG=$(PWD)/test.kubeconfig
 
 .PHONY: test-cluster
-aws-cluster:
+test-cluster:
 	-kubectl create namespace aws-test
-	kubectl apply -f example-cluster.yaml -n aws-test
+	kubectl apply -f test-cluster.yaml -n aws-test
